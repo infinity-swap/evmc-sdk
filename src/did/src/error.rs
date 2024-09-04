@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 
 use candid::{CandidType, Deserialize};
+use derive_more::derive::Display;
 use jsonrpc_core::{Error, ErrorCode};
 use rlp::DecoderError;
 use serde::Serialize;
@@ -66,6 +67,9 @@ pub enum EvmError {
 
     #[error("Precompile: {0}")]
     Precompile(String),
+
+    #[error("Gas estimation failed: {0}. This is likely due to invalid transaction data. Please check your transaction data and try again.")]
+    GasEstimationFailed(String),
 }
 
 /// Variant of `TransactionPool` error
@@ -135,7 +139,17 @@ impl From<EvmError> for jsonrpc_core::error::Error {
 }
 
 #[derive(
-    Debug, Clone, Serialize, Deserialize, CandidType, Eq, PartialEq, PartialOrd, Ord, Hash,
+    Debug,
+    Clone,
+    Serialize,
+    Deserialize,
+    CandidType,
+    Eq,
+    PartialEq,
+    PartialOrd,
+    Ord,
+    Hash,
+    strum::Display,
 )]
 pub enum HaltError {
     /// Trying to pop from an empty stack.
@@ -161,7 +175,7 @@ pub enum HaltError {
     /// limit (runtime).
     OutOfOffset,
     /// Execution runs out of gas (runtime).
-    OutOfGas,
+    OutOfGas(OutOfGasError),
     /// Not enough fund to start the execution (runtime).
     OutOfFund,
 
@@ -243,4 +257,32 @@ pub enum SignatureVerificationError {
     InternalError(String),
     #[error("unauthorized principal")]
     Unauthorized,
+}
+
+#[derive(
+    Debug,
+    Copy,
+    Clone,
+    CandidType,
+    PartialEq,
+    Serialize,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Deserialize,
+    strum::Display,
+)]
+pub enum OutOfGasError {
+    // Basic OOG error
+    Basic,
+    // Tried to expand past REVM limit
+    MemoryLimit,
+    // Basic OOG error from memory expansion
+    Memory,
+    // Precompile threw OOG error
+    Precompile,
+    // When performing something that takes a U256 and casts down to a u64, if its too large this would fire
+    // i.e. in `as_usize_or_fail`
+    InvalidOperand,
 }
